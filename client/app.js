@@ -31,7 +31,7 @@ class VoiceAssistant {
         this.recognitionRestarting = false;
         
         this.silenceTimeout = null;
-        this.silenceDelay = 4000;
+        this.silenceDelay = 3000;
         this.autoListenEnabled = true;
         this.lastSpeechTime = 0;
         this.hasSpeechContent = false;
