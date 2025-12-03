@@ -8,11 +8,11 @@ class VoiceAssistant {
         this.isPlaying = false;
         this.currentSeq = 0;
         this.highestSeqPlayed = -1;
-        this.bufferThreshold = 3;
+        this.bufferThreshold = 5;
         this.maxBufferSize = 30;
         this.scheduledTime = 0;
         this.isFirstChunk = true;
-        this.initialBufferDelay = 0.1;
+        this.initialBufferDelay = 0.15;
         
         this.totalScheduledDuration = 0;
         this.playbackStartTime = 0;
@@ -490,12 +490,15 @@ class VoiceAssistant {
             
             this.audioQueue.sort((a, b) => a.seq - b.seq);
             
-            if (!this.isPlaying && !this.playbackStarted) {
+            if (!this.playbackStarted) {
                 if (this.audioQueue.length >= this.bufferThreshold) {
                     this.startPlayback();
                 } else if (this.audioQueue.length === 1) {
                     this.scheduleDelayedPlaybackStart();
                 }
+            } else if (!this.isPlaying && this.audioQueue.length > 0) {
+                console.log('Resuming playback with', this.audioQueue.length, 'chunks in queue');
+                this.resumePlayback();
             }
         }
         
@@ -507,10 +510,19 @@ class VoiceAssistant {
             if (!this.playbackStarted && this.audioQueue.length > 0) {
                 console.log('Starting playback on is_last signal with', this.audioQueue.length, 'chunks');
                 this.startPlayback();
+            } else if (this.playbackStarted && !this.isPlaying && this.audioQueue.length > 0) {
+                console.log('Resuming playback on is_last signal');
+                this.resumePlayback();
             }
             
             this.flushAudioQueue();
         }
+    }
+    
+    resumePlayback() {
+        if (this.isPlaying) return;
+        this.isPlaying = true;
+        this.playNextChunk();
     }
     
     scheduleDelayedPlaybackStart() {
