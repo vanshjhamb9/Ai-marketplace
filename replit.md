@@ -4,13 +4,13 @@
 An AI-powered voice assistant chatbot backend for a marketplace platform where users can create tasks as buyers or sellers. Features real-time voice streaming with OpenAI's Realtime API, optimized audio playback, and a beautiful Siri-like web interface for testing.
 
 ## Recent Changes (December 2024)
+- **Auto-Stop Mic on Silence**: Microphone automatically stops after 2.5 seconds of silence and sends message
+- **Auto-Start Mic After AI Response**: Mic automatically starts listening after AI finishes speaking
+- **Improved Audio Quality**: Increased buffer threshold to 5 chunks with 150ms initial delay to prevent fumbling/fast speech
+- **Test Mode**: Added `/webservice/api/v1/test/chat` endpoint that bypasses authentication for development testing
 - **Voice Input via Microphone**: Added Web Speech API support - tap the orb to speak and your voice is transcribed to text
-- **Test Mode**: Added `/webservice/api/v1/ai/test-chat` endpoint that bypasses authentication for development testing
-- **Improved Chat UI**: Enlarged chat window (400px) and made layout more compact
 - **Session Pre-warming**: OpenAI realtime session is created when user connects (saves 500-1000ms on first response)
 - **Gapless Audio Playback**: Continuous audio scheduling for smooth, uninterrupted speech
-- **Reduced Buffer Threshold**: Audio starts playing immediately with first chunk (was 3, now 1)
-- **Faster Playback Loop**: Reduced delays from 50ms to 5-10ms for quicker response
 - Optimized voice streaming with sequence numbers and backpressure control
 - Added Siri-like web frontend for testing voice assistant
 - Improved system prompts for more natural, human-like responses
