@@ -28,31 +28,58 @@ app.use(fileUpload({
   tempFileDir: '/tmp/', // required for cloudinary file handling
 }));
 
+app.use(express.static(path.join(__dirname, 'client')));
+
 app.get('/health',(req,res)=>{
     res.status(200).send({success:true});
 })
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client', 'index.html'));
+});
+
 app.use('/webservice/api', require('./src/routes'));
 app.use(errorMiddleware);
 
 const server = http.createServer(app);
 
-mongoose.connect(process.env.MONGO_CONNECTION_STRING)
-.then(()=>{
-    console.log('MongoDB connected');  
+const PORT = process.env.PORT || 5000;
+
+async function startServer() {
+    let mongoConnected = false;
     
-    server.listen(process.env.PORT, ()=>{
-        console.log('server is running at port: ', process.env.PORT);
-
-        //initializing socket
+    if (process.env.MONGO_CONNECTION_STRING) {
+        try {
+            await mongoose.connect(process.env.MONGO_CONNECTION_STRING);
+            console.log('MongoDB connected');
+            mongoConnected = true;
+        } catch (error) {
+            console.log('Warning: MongoDB connection failed -', error.message);
+            console.log('Server will start without database connectivity');
+        }
+    } else {
+        console.log('Warning: MONGO_CONNECTION_STRING not set. Server will start without database connectivity.');
+    }
+    
+    server.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server is running at port: ${PORT}`);
+        
         initializeSocketServer(server);
+        
+        if (mongoConnected) {
+            require('./src/utils/cron');
+        }
+        
+        if (!mongoConnected) {
+            console.log('Note: API endpoints requiring database will not work until MongoDB is connected.');
+        }
+    });
+}
 
-        //running cron
-        require('./src/utils/cron');
-    })
-})
-.catch(error=>{
-    console.log('Error in MongoDB connection ', error);
-})
+startServer().catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+});
 
 //=================to generate jwt tokens
 // const secret = crypto.randomBytes(64).toString("hex"); // 512-bit secret

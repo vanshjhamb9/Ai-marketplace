@@ -1,7 +1,7 @@
 const {Server} = require('socket.io');
 const { createOffer, acceptOffer, rejectOffer, clearPreviousChatWebSocket } = require('../../utils/helperFunctions');
 const {setSocketIO} = require('./socket_service');
-const { closeWS, clearRealTimeSessions, clearChatHistory } = require('../../modules/v1/AI/controller');
+const { closeWS, clearRealTimeSessions, clearChatHistory, setupAudioAckListener } = require('../../modules/v1/AI/controller');
 
 let io;
 
@@ -22,13 +22,14 @@ const initializeSocketServer=(server)=>{
 
         //To Join a room
         socket.on("createRoom", (data) => {
-            console.log("📩 Socket joined room:", data);
+            console.log("Socket joined room:", data);
             socket.join(data.roomId);
 
-            // clearPreviousChatWebSocket(data.roomId);
             closeWS(data.roomId);
             clearRealTimeSessions(data.roomId);
             clearChatHistory(data.roomId);
+            
+            setupAudioAckListener(socket, data.roomId);
         });
         //To Leave a room
         socket.on("closeChat", (data) => {

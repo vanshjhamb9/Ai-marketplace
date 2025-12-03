@@ -1,7 +1,14 @@
-# AI Marketplace Backend
+# AI Marketplace - Voice Assistant Backend
 
 ## Overview
-An AI-powered voice assistant chatbot backend for a marketplace platform where users can create tasks as buyers or sellers. Built with Node.js/Express, MongoDB, Socket.IO for real-time communication, and integrates with OpenAI for AI features.
+An AI-powered voice assistant chatbot backend for a marketplace platform where users can create tasks as buyers or sellers. Features real-time voice streaming with OpenAI's Realtime API, optimized audio playback, and a beautiful Siri-like web interface for testing.
+
+## Recent Changes (December 2024)
+- Optimized voice streaming with sequence numbers and backpressure control
+- Added Siri-like web frontend for testing voice assistant
+- Improved system prompts for more natural, human-like responses
+- Made server resilient to missing API keys (graceful degradation)
+- Fixed audio chunking and playback synchronization
 
 ## Project Architecture
 
@@ -10,14 +17,17 @@ An AI-powered voice assistant chatbot backend for a marketplace platform where u
 - **Framework**: Express.js 5
 - **Database**: MongoDB (via Mongoose)
 - **Real-time**: Socket.IO
-- **AI**: OpenAI API
+- **AI**: OpenAI Realtime API (gpt-4o-realtime-preview)
 - **File Storage**: Cloudinary
 - **Email**: SendGrid
-- **SMS**: Twilio (optional)
 
 ### Directory Structure
 ```
 ├── index.js                 # Main entry point, Express server setup
+├── client/                  # Siri-like voice assistant web UI
+│   ├── index.html           # Main HTML with orb button and chat UI
+│   ├── styles.css           # Dark theme with animations
+│   └── app.js               # Socket.IO and Web Audio API integration
 ├── src/
 │   ├── config/
 │   │   ├── socket/          # Socket.IO configuration
@@ -36,35 +46,41 @@ An AI-powered voice assistant chatbot backend for a marketplace platform where u
 │   │   └── global_settings.js
 │   ├── modules/v1/          # API routes by feature
 │   │   ├── AI/              # AI voice assistant endpoints
-│   │   ├── auth/            # Authentication (login, register, OTP)
-│   │   ├── user/            # User profile management
-│   │   ├── products/        # Product CRUD
-│   │   ├── transactions/    # Transaction handling
+│   │   ├── auth/            # Authentication
+│   │   ├── user/            # User profile
+│   │   ├── products/        # Products CRUD
+│   │   ├── transactions/    # Transactions
 │   │   └── messages/        # Chat messages
 │   ├── public/uploads/      # File uploads directory
-│   ├── utils/
-│   │   ├── helperFunctions.js  # JWT, email, SMS utilities
-│   │   ├── customError.js      # Custom error class
-│   │   └── cron.js             # Scheduled tasks
-│   └── routes.js            # Main route aggregator
-├── package.json
-└── vercel.json              # Vercel deployment config
+│   └── utils/
+│       ├── helperFunctions.js  # JWT, email utilities
+│       ├── customError.js      # Custom error class
+│       └── cron.js             # Scheduled tasks
 ```
 
-### API Base Path
-All API routes are prefixed with `/webservice/api`
+## Socket Events (Voice Streaming Protocol)
 
-### Socket Events
-- `createRoom`: Join a room with user_id
-- `audio_chunk`: Receive audio data in base64 chunks
-- `text_chunk`: Receive text chunks during streaming
-- `text_message`: Receive full text at end
-- `chat_ended`: Chat session completed
+### Client → Server
+- `createRoom`: Join a room with `{roomId: userId}`
+- `audio_ack`: Acknowledge played audio `{highestSeqPlayed: number}`
+
+### Server → Client
+- `stream_start`: Streaming begins `{turnId, format: {codec, sample_rate, channels}}`
+- `audio_chunk`: Audio data `{seq, turnId, format, chunk: base64, is_last: bool}`
+- `text_chunk`: Text fragment `{text, seq}`
+- `text_message`: Complete text `{text}`
+- `stream_end`: Streaming complete `{turnId, totalChunks}`
+- `chat_ended`: Conversation summary with product details
+
+### Audio Format
+- Codec: PCM16
+- Sample Rate: 24000 Hz
+- Channels: 1 (mono)
 
 ## Environment Variables
 
-### Required
-- `PORT`: Server port (default: 3000)
+### Required for Full Functionality
+- `PORT`: Server port (default: 5000)
 - `MONGO_CONNECTION_STRING`: MongoDB connection URI
 - `JWT_SECRET_KEY`: Secret for JWT token signing
 - `OPEN_API_KEY`: OpenAI API key
@@ -76,9 +92,6 @@ All API routes are prefixed with `/webservice/api`
 - `CLOUDINARY_API_KEY`: Cloudinary API key
 - `CLOUDINARY_API_SECRET`: Cloudinary API secret
 - `VOYAGE_API_KEY`: VoyageAI API key for embeddings
-- `TWILIO_ACCOUNT_SID`: Twilio account SID
-- `TWILIO_AUTH_TOKEN`: Twilio auth token
-- `TWILIO_MESSAGING_SERVICE_SID`: Twilio messaging service ID
 
 ### Model Configuration
 - `OPEN_API_MODEL`: Main model (default: gpt-4o)
@@ -93,17 +106,31 @@ npm install
 npm start
 ```
 
+The server starts on port 5000 and serves the voice assistant UI at the root path `/`.
+
 ### Health Check
-GET `/health` - Returns `{success: true}` when server is running
+GET `/health` - Returns `{success: true}`
 
-## Known Issues & Improvements Needed
+## Voice Assistant Improvements Made
 
-### Voice Assistant Performance
-1. **Latency**: Current implementation waits for full LLM response before TTS
-2. **Audio Streaming**: Needs sequence numbers and proper chunking
-3. **Flutter Integration**: Audio playback sync issues
+### Performance Optimizations
+1. **Sequence Numbers**: Each audio chunk now includes a sequence number for proper ordering
+2. **Backpressure Control**: Server waits for client acknowledgment before sending more chunks
+3. **Stream Events**: Added `stream_start` and `stream_end` events for better lifecycle management
+4. **Lazy API Initialization**: OpenAI client only initializes when API key is available
 
-See the improvement plan in project notes.
+### Human-like Behavior
+1. **Shorter Responses**: AI now gives 1-2 sentence responses
+2. **Natural Speech**: Prompts encourage conversational tone with natural pauses
+3. **Lower Temperature**: Set to 0.6 for more consistent, natural responses
 
-## Recent Changes
-- December 2024: Imported to Replit, configured environment
+### Frontend Features
+1. **Siri-like UI**: Beautiful dark gradient background with glowing orb
+2. **Audio Buffering**: Web Audio API with proper PCM16 decoding
+3. **Live Transcript**: Real-time text display during streaming
+4. **Visual Feedback**: Animated states (Ready, Thinking, Speaking)
+
+## User Preferences
+- Keep responses short and conversational
+- Focus on performance and low latency
+- Maintain backwards compatibility with Flutter app

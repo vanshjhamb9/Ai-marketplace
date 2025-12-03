@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Assistant</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="background-gradient"></div>
+        
+        <header class="header">
+            <h1>Voice Assistant</h1>
+            <p class="status-text" id="statusText">Ready</p>
+        </header>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="messages" id="messages"></div>
+        </div>
+
+        <div class="assistant-section">
+            <div class="live-transcript" id="liveTranscript">
+                <span class="typing-indicator" id="typingIndicator"></span>
+            </div>
+            
+            <div class="orb-container">
+                <div class="orb-glow" id="orbGlow"></div>
+                <div class="orb" id="orb">
+                    <div class="wave-container" id="waveContainer">
+                        <div class="wave wave1"></div>
+                        <div class="wave wave2"></div>
+                        <div class="wave wave3"></div>
+                        <div class="wave wave4"></div>
+                    </div>
+                    <div class="orb-icon" id="orbIcon">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="orb-ring" id="orbRing"></div>
+            </div>
+        </div>
+
+        <div class="input-section">
+            <div class="input-container">
+                <input type="text" id="messageInput" placeholder="Type a message..." autocomplete="off">
+                <button class="send-btn" id="sendBtn">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="connection-status" id="connectionStatus">
+            <span class="status-dot"></span>
+            <span>Connecting...</span>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -16,8 +16,14 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Initialize OPEN-AI with API key
-const openai = new OpenAI({ apiKey : process.env.OPEN_API_KEY });
+// Initialize OPEN-AI with API key (lazy initialization)
+let openai = null;
+const getOpenAI = () => {
+  if (!openai && process.env.OPEN_API_KEY) {
+    openai = new OpenAI({ apiKey: process.env.OPEN_API_KEY });
+  }
+  return openai;
+};
 
 
 //-----------common functions
@@ -38,7 +44,7 @@ const openai = new OpenAI({ apiKey : process.env.OPEN_API_KEY });
 
 //1536 using openAI
 async function getEmbedding1536(text) {
-  const response = await openai.embeddings.create({
+  const response = await getOpenAI().embeddings.create({
     model: "text-embedding-3-small",
     input: text,
     dimensions: 1536
