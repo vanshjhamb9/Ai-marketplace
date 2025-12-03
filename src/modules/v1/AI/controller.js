@@ -289,8 +289,48 @@ async function prewarmSession(user_id) {
   return sessionWarmingPromises[user_id];
 }
 
+const testChatAssistant = async(req, res, next)=>{
+    try {           
+        const { user_query_text, user_id } = req.body;
+        if(!user_query_text){
+            throw new CustomError(400, 'Please send user query');
+        }
+
+        if (!process.env.OPEN_API_KEY) {
+            throw new CustomError(500, 'OpenAI API key not configured. Please add OPEN_API_KEY to your secrets.');
+        }
+
+        const testUserId = user_id || 'test-user';
+        socketIo = getSocketIO();
+
+        res.status(200).json({
+            success: true,
+            message: "Success"
+        });
+
+        const shouldEndChat = await isUserWantsToEndChat(user_query_text);
+        
+        if(shouldEndChat){
+          const chatEndedSummary = await getChatEndedSummary(testUserId);
+          
+          closeWS(testUserId);
+          clearRealTimeSessions(testUserId);
+          clearChatHistory(testUserId);
+
+          socketIo.to(testUserId.toString()).emit('chat_ended', chatEndedSummary);
+        } else {
+          salesAssistant(testUserId, user_query_text);
+        }
+
+    } catch (error) {
+        console.log(error, '--------error in test chat bot api');
+        next(error);
+    }
+}
+
 module.exports = {
    chatAssistant,
+   testChatAssistant,
    setupAudioAckListener,
    closeWS,
    clearRealTimeSessions,

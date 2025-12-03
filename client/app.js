@@ -3,7 +3,6 @@ class VoiceAssistant {
         this.socket = null;
         this.audioContext = null;
         this.userId = 'test-user-' + Math.random().toString(36).substr(2, 9);
-        this.authToken = 'mock-auth-token-for-testing';
         
         this.audioQueue = [];
         this.isPlaying = false;
@@ -16,6 +15,11 @@ class VoiceAssistant {
         
         this.currentTranscript = '';
         this.state = 'ready';
+        
+        this.mediaRecorder = null;
+        this.audioChunks = [];
+        this.isRecording = false;
+        this.recognition = null;
         
         this.elements = {
             statusText: document.getElementById('statusText'),
@@ -37,7 +41,71 @@ class VoiceAssistant {
     init() {
         this.initAudioContext();
         this.initSocket();
+        this.initSpeechRecognition();
         this.initEventListeners();
+    }
+    
+    initSpeechRecognition() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            this.recognition = new SpeechRecognition();
+            this.recognition.continuous = false;
+            this.recognition.interimResults = true;
+            this.recognition.lang = 'en-US';
+            
+            this.recognition.onstart = () => {
+                console.log('Speech recognition started');
+                this.isRecording = true;
+                this.setState('listening');
+                this.elements.liveTranscript.textContent = 'Listening...';
+            };
+            
+            this.recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                this.elements.liveTranscript.textContent = finalTranscript || interimTranscript || 'Listening...';
+                
+                if (finalTranscript) {
+                    this.elements.messageInput.value = finalTranscript;
+                }
+            };
+            
+            this.recognition.onend = () => {
+                console.log('Speech recognition ended');
+                this.isRecording = false;
+                
+                if (this.elements.messageInput.value.trim()) {
+                    this.sendMessage();
+                } else {
+                    this.setState('ready');
+                    this.elements.liveTranscript.textContent = '';
+                }
+            };
+            
+            this.recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                this.isRecording = false;
+                this.setState('ready');
+                
+                if (event.error === 'not-allowed') {
+                    this.elements.liveTranscript.textContent = 'Microphone access denied. Please allow microphone access.';
+                } else {
+                    this.elements.liveTranscript.textContent = 'Error: ' + event.error;
+                }
+            };
+        } else {
+            console.log('Speech recognition not supported');
+        }
     }
     
     initAudioContext() {
@@ -129,12 +197,33 @@ class VoiceAssistant {
         
         this.elements.orb.addEventListener('click', async () => {
             await this.resumeAudioContext();
-            this.elements.messageInput.focus();
+            this.toggleRecording();
         });
         
         document.addEventListener('click', () => {
             this.resumeAudioContext();
         }, { once: true });
+    }
+    
+    toggleRecording() {
+        if (!this.recognition) {
+            this.elements.liveTranscript.textContent = 'Speech recognition not supported in this browser. Please use Chrome.';
+            return;
+        }
+        
+        if (this.isRecording) {
+            this.recognition.stop();
+        } else {
+            this.elements.messageInput.value = '';
+            try {
+                this.recognition.start();
+            } catch (error) {
+                console.error('Error starting recognition:', error);
+                if (error.message.includes('already started')) {
+                    this.recognition.stop();
+                }
+            }
+        }
     }
     
     updateConnectionStatus(connected) {
@@ -152,11 +241,11 @@ class VoiceAssistant {
         const statusText = this.elements.statusText;
         
         statusText.classList.remove('listening', 'thinking', 'speaking');
-        this.elements.orbContainer.classList.remove('active', 'speaking');
+        this.elements.orbContainer.classList.remove('active', 'speaking', 'listening');
         
         switch (state) {
             case 'ready':
-                statusText.textContent = 'Ready';
+                statusText.textContent = 'Tap to speak';
                 break;
             case 'thinking':
                 statusText.textContent = 'Thinking...';
@@ -171,7 +260,7 @@ class VoiceAssistant {
             case 'listening':
                 statusText.textContent = 'Listening...';
                 statusText.classList.add('listening');
-                this.elements.orbContainer.classList.add('active');
+                this.elements.orbContainer.classList.add('active', 'listening');
                 break;
         }
     }
@@ -189,13 +278,15 @@ class VoiceAssistant {
         this.currentTranscript = '';
         
         try {
-            const response = await fetch('/webservice/api/v1/ai/chat', {
+            const response = await fetch('/webservice/api/v1/ai/test-chat', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.authToken}`
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ user_query_text: message })
+                body: JSON.stringify({ 
+                    user_query_text: message,
+                    user_id: this.userId 
+                })
             });
             
             if (!response.ok) {

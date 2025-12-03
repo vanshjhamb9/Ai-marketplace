@@ -5,4 +5,6 @@ const controller = require('./controller');
 
 router.post('/get-query-info', controller.chatAssistant);
 
+router.post('/test-chat', controller.testChatAssistant);
+
 module.exports = router;
