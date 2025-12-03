@@ -8,3 +8,4 @@
 [x] 8. Fix AI voice cutting off early - improved audio playback completion tracking with waitForPlaybackComplete()
 [x] 9. Fix microphone not capturing after AI stops - improved auto-listen restart mechanism with state guards
 [x] 10. Fix short response playback - added delayed playback start for responses with few chunks
+[x] 11. Fix duplicate word transcription on mobile - improved speech recognition result tracking to prevent word repetition

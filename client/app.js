@@ -36,6 +36,9 @@ class VoiceAssistant {
         this.lastSpeechTime = 0;
         this.hasSpeechContent = false;
         
+        this.finalTranscriptParts = [];
+        this.lastProcessedResultIndex = -1;
+        
         this.elements = {
             statusText: document.getElementById('statusText'),
             messages: document.getElementById('messages'),
@@ -74,6 +77,8 @@ class VoiceAssistant {
                 this.isRecording = true;
                 this.recognitionRestarting = false;
                 this.hasSpeechContent = false;
+                this.finalTranscriptParts = [];
+                this.lastProcessedResultIndex = -1;
                 this.setState('listening');
                 this.elements.liveTranscript.textContent = 'Listening...';
                 this.lastSpeechTime = Date.now();
@@ -81,32 +86,37 @@ class VoiceAssistant {
             };
             
             this.recognition.onresult = (event) => {
-                let interimTranscript = '';
-                let finalTranscript = '';
+                let fullFinalTranscript = '';
+                let currentInterimTranscript = '';
                 
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const transcript = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        finalTranscript += transcript;
+                for (let i = 0; i < event.results.length; i++) {
+                    const result = event.results[i];
+                    const transcript = result[0].transcript;
+                    
+                    if (result.isFinal) {
+                        if (i > this.lastProcessedResultIndex) {
+                            this.finalTranscriptParts[i] = transcript;
+                            this.lastProcessedResultIndex = i;
+                        }
                     } else {
-                        interimTranscript += transcript;
+                        currentInterimTranscript = transcript;
                     }
                 }
                 
-                if (finalTranscript || interimTranscript) {
+                fullFinalTranscript = this.finalTranscriptParts.filter(Boolean).join(' ').trim();
+                
+                if (fullFinalTranscript || currentInterimTranscript) {
                     this.hasSpeechContent = true;
                     this.lastSpeechTime = Date.now();
                     this.resetSilenceTimeout();
                 }
                 
-                const displayText = finalTranscript || interimTranscript;
+                const displayText = fullFinalTranscript 
+                    ? (currentInterimTranscript ? fullFinalTranscript + ' ' + currentInterimTranscript : fullFinalTranscript)
+                    : currentInterimTranscript;
                 this.elements.liveTranscript.textContent = displayText || 'Listening...';
                 
-                if (finalTranscript) {
-                    this.elements.messageInput.value = (this.elements.messageInput.value + ' ' + finalTranscript).trim();
-                } else if (interimTranscript && !this.elements.messageInput.value) {
-                    this.elements.liveTranscript.textContent = interimTranscript;
-                }
+                this.elements.messageInput.value = fullFinalTranscript;
             };
             
             this.recognition.onend = () => {
