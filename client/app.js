@@ -278,7 +278,7 @@ class VoiceAssistant {
         this.currentTranscript = '';
         
         try {
-            const response = await fetch('/webservice/api/v1/ai/test-chat', {
+            const response = await fetch('/webservice/api/v1/test/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
