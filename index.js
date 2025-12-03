@@ -34,6 +34,17 @@ app.get('/health',(req,res)=>{
     res.status(200).send({success:true});
 })
 
+app.get('/health/status',(req,res)=>{
+    const status = {
+        server: true,
+        database: !!process.env.MONGO_CONNECTION_STRING,
+        openai: !!process.env.OPEN_API_KEY,
+        sendgrid: !!process.env.SENDGRID_API_KEY,
+        cloudinary: !!(process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_CLOUD_NAME)
+    };
+    res.status(200).json(status);
+})
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'client', 'index.html'));
 });
