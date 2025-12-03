@@ -4,3 +4,44 @@ expertMode = true
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+PORT = "3000"
+SERVER_DOMAIN = "ai-marketplace.replit.app"
+SERVER_URL = "https://ai-marketplace.replit.app"
+OPEN_API_MODEL = "gpt-4o"
+OPEN_API_GPT_4o_MINI_MODEL = "gpt-4o-mini"
+OPEN_API_GPT_5_MINI_MODEL = "gpt-4o-mini"
+OPEN_API_REALTIME_MODEL = "gpt-4o-realtime-preview"
+CLOUDINARY_BASE_URL = "https://res.cloudinary.com/"
+CLOUDINARY_BASE_URL_CHAT_MEDIA = "https://res.cloudinary.com/"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Backend Server"
+
+[[workflows.workflow]]
+name = "Backend Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm start"
+waitForPort = 3000
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[ports]]
+localPort = 3000
+externalPort = 3000
