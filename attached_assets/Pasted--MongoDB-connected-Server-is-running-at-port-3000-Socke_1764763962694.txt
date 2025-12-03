@@ -1,0 +1,43 @@
+
+MongoDB connected
+Server is running at port: 3000
+🟢 Socket connected: Y51Jzn663cLx69NcAAAB
+Socket joined room: { roomId: 'test-user-ethz6ybfx' }
+Pre-warming session for user: test-user-ethz6ybfx
+🔴 Socket disconnected: Y51Jzn663cLx69NcAAAB
+WS: wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17&client_secret=ek_69302764d1fc8191980979f5e3183f8e
+Session pre-warmed for user: test-user-ethz6ybfx
+🟢 Socket connected: vptJ6MpMjXn0sBL_AAAD
+Socket joined room: { roomId: 'test-user-uabdpsai3' }
+Pre-warming session for user: test-user-uabdpsai3
+WS: wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17&client_secret=ek_69302765b5d4819184de6286959aa282
+Session pre-warmed for user: test-user-uabdpsai3
+CustomError: No token found
+    at isLoggedInMiddleware (C:\Users\asus\OneDrive\Desktop\Ai marketplace\src\middlewares\isLoggedInMiddleware.js:14:19)
+    at Layer.handleRequest (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\lib\layer.js:152:17)
+    at trimPrefix (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\index.js:342:13)
+    at C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\index.js:297:9
+    at processParams (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\index.js:582:12)
+    at next (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\index.js:291:5)
+    at Function.handle (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\index.js:186:3)
+    at router (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\index.js:60:12)
+    at Layer.handleRequest (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\lib\layer.js:152:17)
+    at trimPrefix (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\index.js:342:13) {
+  status: 401,
+  functionName: 'isLoggedInMiddleware'
+}
+CustomError: No token found
+    at isLoggedInMiddleware (C:\Users\asus\OneDrive\Desktop\Ai marketplace\src\middlewares\isLoggedInMiddleware.js:14:19)
+    at Layer.handleRequest (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\lib\layer.js:152:17)
+    at trimPrefix (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\index.js:342:13)
+    at C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\index.js:297:9
+    at processParams (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\index.js:582:12)
+    at next (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\index.js:291:5)
+    at Function.handle (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\index.js:186:3)
+    at router (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\index.js:60:12)
+    at Layer.handleRequest (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\lib\layer.js:152:17)
+    at trimPrefix (C:\Users\asus\OneDrive\Desktop\Ai marketplace\node_modules\router\index.js:342:13) {
+  status: 401,
+  functionName: 'isLoggedInMiddleware'
+}
+Terminate batch job (Y/N)?

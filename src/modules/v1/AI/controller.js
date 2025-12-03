@@ -13,8 +13,9 @@ let socketIo;
 
 let openai = null;
 const getOpenAI = () => {
-  if (!openai && process.env.OPEN_API_KEY) {
-    openai = new OpenAI({ apiKey: process.env.OPEN_API_KEY });
+  const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY;
+  if (!openai && apiKey) {
+    openai = new OpenAI({ apiKey });
   }
   return openai;
 };
@@ -225,8 +226,9 @@ const chatAssistant = async(req, res, next)=>{
             throw new CustomError(400, 'Please send user query');
         }
 
-        if (!process.env.OPEN_API_KEY) {
-            throw new CustomError(500, 'OpenAI API key not configured. Please add OPEN_API_KEY to your secrets.');
+        const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY;
+        if (!apiKey) {
+            throw new CustomError(500, 'OpenAI API key not configured. Please add OPENAI_API_KEY to your secrets.');
         }
 
         const user_id = req.user._id;
@@ -258,8 +260,9 @@ const chatAssistant = async(req, res, next)=>{
 }
 
 async function prewarmSession(user_id) {
-  if (!process.env.OPEN_API_KEY) {
-    console.log('Cannot prewarm: OPEN_API_KEY not set');
+  const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY;
+  if (!apiKey) {
+    console.log('Cannot prewarm: OPENAI_API_KEY not set');
     return;
   }
   
@@ -296,8 +299,9 @@ const testChatAssistant = async(req, res, next)=>{
             throw new CustomError(400, 'Please send user query');
         }
 
-        if (!process.env.OPEN_API_KEY) {
-            throw new CustomError(500, 'OpenAI API key not configured. Please add OPEN_API_KEY to your secrets.');
+        const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY;
+        if (!apiKey) {
+            throw new CustomError(500, 'OpenAI API key not configured. Please add OPENAI_API_KEY to your secrets.');
         }
 
         const testUserId = user_id || 'test-user';
@@ -439,8 +443,9 @@ async function salesAssistant(user_id, message) {
 
     closeWS(user_id);
 
+    const wsApiKey = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY;
     ws = new WebSocket(wsUrl, {
-      headers: { Authorization: `Bearer ${process.env.OPEN_API_KEY}` }
+      headers: { Authorization: `Bearer ${wsApiKey}` }
     });
 
     webSocketInstances[user_id] = ws;
@@ -632,7 +637,7 @@ async function createRealtimeSession() {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPEN_API_KEY}`,
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY}`,
           "Content-Type": "application/json",
         }
       }
