@@ -67,18 +67,18 @@ class VoiceAssistant {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
             this.recognition = new SpeechRecognition();
-            this.recognition.continuous = true;
+            this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            this.recognition.continuous = !this.isMobile;
             this.recognition.interimResults = true;
             this.recognition.lang = 'en-US';
             this.recognition.maxAlternatives = 1;
             
             this.recognition.onstart = () => {
-                console.log('Speech recognition started');
+                console.log('Speech recognition started, mobile:', this.isMobile);
                 this.isRecording = true;
                 this.recognitionRestarting = false;
                 this.hasSpeechContent = false;
-                this.finalTranscriptParts = [];
-                this.lastProcessedResultIndex = -1;
+                this.accumulatedFinalTranscript = '';
                 this.setState('listening');
                 this.elements.liveTranscript.textContent = 'Listening...';
                 this.lastSpeechTime = Date.now();
@@ -86,37 +86,45 @@ class VoiceAssistant {
             };
             
             this.recognition.onresult = (event) => {
-                let fullFinalTranscript = '';
-                let currentInterimTranscript = '';
+                let finalTranscript = '';
+                let interimTranscript = '';
                 
-                for (let i = 0; i < event.results.length; i++) {
-                    const result = event.results[i];
-                    const transcript = result[0].transcript;
+                const latestResultIndex = event.results.length - 1;
+                const latestResult = event.results[latestResultIndex];
+                
+                if (latestResult.isFinal) {
+                    finalTranscript = latestResult[0].transcript.trim();
                     
-                    if (result.isFinal) {
-                        if (i > this.lastProcessedResultIndex) {
-                            this.finalTranscriptParts[i] = transcript;
-                            this.lastProcessedResultIndex = i;
-                        }
+                    if (this.isMobile) {
+                        this.accumulatedFinalTranscript = finalTranscript;
                     } else {
-                        currentInterimTranscript = transcript;
+                        if (this.accumulatedFinalTranscript) {
+                            this.accumulatedFinalTranscript += ' ' + finalTranscript;
+                        } else {
+                            this.accumulatedFinalTranscript = finalTranscript;
+                        }
                     }
+                } else {
+                    interimTranscript = latestResult[0].transcript.trim();
                 }
                 
-                fullFinalTranscript = this.finalTranscriptParts.filter(Boolean).join(' ').trim();
-                
-                if (fullFinalTranscript || currentInterimTranscript) {
+                if (finalTranscript || interimTranscript) {
                     this.hasSpeechContent = true;
                     this.lastSpeechTime = Date.now();
                     this.resetSilenceTimeout();
                 }
                 
-                const displayText = fullFinalTranscript 
-                    ? (currentInterimTranscript ? fullFinalTranscript + ' ' + currentInterimTranscript : fullFinalTranscript)
-                    : currentInterimTranscript;
+                let displayText;
+                if (this.isMobile) {
+                    displayText = this.accumulatedFinalTranscript || interimTranscript;
+                } else {
+                    displayText = this.accumulatedFinalTranscript 
+                        ? (interimTranscript ? this.accumulatedFinalTranscript + ' ' + interimTranscript : this.accumulatedFinalTranscript)
+                        : interimTranscript;
+                }
                 this.elements.liveTranscript.textContent = displayText || 'Listening...';
                 
-                this.elements.messageInput.value = fullFinalTranscript;
+                this.elements.messageInput.value = this.accumulatedFinalTranscript;
             };
             
             this.recognition.onend = () => {
@@ -130,7 +138,9 @@ class VoiceAssistant {
                     return;
                 }
                 
-                if (this.elements.messageInput.value.trim()) {
+                const messageToSend = this.accumulatedFinalTranscript || this.elements.liveTranscript.textContent;
+                if (messageToSend && messageToSend.trim() && messageToSend !== 'Listening...') {
+                    this.elements.messageInput.value = messageToSend.trim();
                     this.sendMessage();
                 } else if (wasRecording && this.state === 'listening') {
                     this.setState('ready');
