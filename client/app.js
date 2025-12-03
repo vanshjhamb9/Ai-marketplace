@@ -9,8 +9,10 @@ class VoiceAssistant {
         this.isPlaying = false;
         this.currentSeq = 0;
         this.highestSeqPlayed = -1;
-        this.bufferThreshold = 3;
-        this.maxBufferSize = 10;
+        this.bufferThreshold = 1;
+        this.maxBufferSize = 15;
+        this.scheduledTime = 0;
+        this.isFirstChunk = true;
         
         this.currentTranscript = '';
         this.state = 'ready';
@@ -227,6 +229,8 @@ class VoiceAssistant {
         this.highestSeqPlayed = -1;
         this.isPlaying = false;
         this.currentTranscript = '';
+        this.scheduledTime = 0;
+        this.isFirstChunk = true;
         
         this.elements.liveTranscript.classList.add('active');
         this.setState('speaking');
@@ -276,7 +280,7 @@ class VoiceAssistant {
                 this.highestSeqPlayed = this.audioQueue[0].seq - 1;
             }
             
-            setTimeout(() => this.playNextChunk(), 50);
+            setTimeout(() => this.playNextChunk(), 10);
             return;
         }
         
@@ -284,11 +288,11 @@ class VoiceAssistant {
         
         try {
             const audioBuffer = this.decodeBase64ToPCM16(chunkData.chunk);
-            await this.playAudioBuffer(audioBuffer);
+            this.scheduleAudioBuffer(audioBuffer);
             
             this.highestSeqPlayed = chunkData.seq;
             
-            if (this.highestSeqPlayed % 5 === 0) {
+            if (this.highestSeqPlayed % 10 === 0) {
                 this.socket.emit('audio_ack', { highestSeqPlayed: this.highestSeqPlayed });
             }
             
@@ -296,7 +300,7 @@ class VoiceAssistant {
             console.error('Error playing chunk:', error);
         }
         
-        this.playNextChunk();
+        setTimeout(() => this.playNextChunk(), 5);
     }
     
     decodeBase64ToPCM16(base64) {
@@ -317,6 +321,25 @@ class VoiceAssistant {
         audioBuffer.getChannelData(0).set(float32);
         
         return audioBuffer;
+    }
+    
+    scheduleAudioBuffer(audioBuffer) {
+        const source = this.audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(this.audioContext.destination);
+        
+        const currentTime = this.audioContext.currentTime;
+        const startTime = Math.max(currentTime, this.scheduledTime);
+        
+        if (this.isFirstChunk) {
+            this.scheduledTime = currentTime + 0.02;
+            this.isFirstChunk = false;
+        }
+        
+        source.start(startTime);
+        this.scheduledTime = startTime + audioBuffer.duration;
+        
+        return audioBuffer.duration;
     }
     
     playAudioBuffer(audioBuffer) {

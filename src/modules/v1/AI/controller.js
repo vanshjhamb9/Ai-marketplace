@@ -214,6 +214,7 @@ const streamingHistory = {};
 const realTimeSessions = {};
 const webSocketInstances = {};
 const audioChunksHistory = {};
+const sessionWarmingPromises = {};
 
 let audioChunks = [];
 
@@ -231,27 +232,61 @@ const chatAssistant = async(req, res, next)=>{
         const user_id = req.user._id;
         socketIo = getSocketIO();
 
-        if(await isUserWantsToEndChat(user_query_text)){
-          const chatEndedSummmary = await getChatEndedSummary(user_id);
-
-          clearChatHistory(user_id);
-          closeWS(user_id);
-          clearRealTimeSessions(user_id);
-
-          socketIo.to(user_id.toString()).emit('chat_ended', chatEndedSummmary);
-        }
-        else{
-          salesAssistant(user_id, user_query_text)
-        }
-
-        return res.status(200).json({
+        res.status(200).json({
             success: true,
             message: "Success"
         });
+
+        const shouldEndChat = await isUserWantsToEndChat(user_query_text);
+        
+        if(shouldEndChat){
+          const chatEndedSummary = await getChatEndedSummary(user_id);
+          
+          closeWS(user_id);
+          clearRealTimeSessions(user_id);
+          clearChatHistory(user_id);
+
+          socketIo.to(user_id.toString()).emit('chat_ended', chatEndedSummary);
+        } else {
+          salesAssistant(user_id, user_query_text);
+        }
+
     } catch (error) {
         console.log(error, '--------error in chat bot api');
         next(error);
     }
+}
+
+async function prewarmSession(user_id) {
+  if (!process.env.OPEN_API_KEY) {
+    console.log('Cannot prewarm: OPEN_API_KEY not set');
+    return;
+  }
+  
+  if (sessionWarmingPromises[user_id]) {
+    return sessionWarmingPromises[user_id];
+  }
+  
+  if (realTimeSessions[user_id]) {
+    return realTimeSessions[user_id];
+  }
+  
+  console.log(`Pre-warming session for user: ${user_id}`);
+  
+  sessionWarmingPromises[user_id] = createRealtimeSession()
+    .then(wsUrl => {
+      realTimeSessions[user_id] = wsUrl;
+      delete sessionWarmingPromises[user_id];
+      console.log(`Session pre-warmed for user: ${user_id}`);
+      return wsUrl;
+    })
+    .catch(err => {
+      delete sessionWarmingPromises[user_id];
+      console.error(`Failed to prewarm session for ${user_id}:`, err.message);
+      return null;
+    });
+  
+  return sessionWarmingPromises[user_id];
 }
 
 module.exports = {
@@ -259,7 +294,8 @@ module.exports = {
    setupAudioAckListener,
    closeWS,
    clearRealTimeSessions,
-   clearChatHistory
+   clearChatHistory,
+   prewarmSession
 }
 
 
@@ -348,6 +384,10 @@ async function salesAssistant(user_id, message) {
           }
         ] 
 
+
+  if(sessionWarmingPromises[user_id]){
+    await sessionWarmingPromises[user_id];
+  }
 
   if(!realTimeSessions[user_id]){
     realTimeSessions[user_id] = await createRealtimeSession();
