@@ -8,10 +8,11 @@ class VoiceAssistant {
         this.isPlaying = false;
         this.currentSeq = 0;
         this.highestSeqPlayed = -1;
-        this.bufferThreshold = 1;
+        this.bufferThreshold = 5;
         this.maxBufferSize = 15;
         this.scheduledTime = 0;
         this.isFirstChunk = true;
+        this.initialBufferDelay = 0.15;
         
         this.currentTranscript = '';
         this.state = 'ready';
@@ -20,6 +21,11 @@ class VoiceAssistant {
         this.audioChunks = [];
         this.isRecording = false;
         this.recognition = null;
+        
+        this.silenceTimeout = null;
+        this.silenceDelay = 2500;
+        this.autoListenEnabled = true;
+        this.lastSpeechTime = 0;
         
         this.elements = {
             statusText: document.getElementById('statusText'),
@@ -49,7 +55,7 @@ class VoiceAssistant {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
             this.recognition = new SpeechRecognition();
-            this.recognition.continuous = false;
+            this.recognition.continuous = true;
             this.recognition.interimResults = true;
             this.recognition.lang = 'en-US';
             
@@ -58,6 +64,8 @@ class VoiceAssistant {
                 this.isRecording = true;
                 this.setState('listening');
                 this.elements.liveTranscript.textContent = 'Listening...';
+                this.lastSpeechTime = Date.now();
+                this.startSilenceDetection();
             };
             
             this.recognition.onresult = (event) => {
@@ -73,16 +81,23 @@ class VoiceAssistant {
                     }
                 }
                 
-                this.elements.liveTranscript.textContent = finalTranscript || interimTranscript || 'Listening...';
+                this.lastSpeechTime = Date.now();
+                this.resetSilenceTimeout();
+                
+                const displayText = finalTranscript || interimTranscript;
+                this.elements.liveTranscript.textContent = displayText || 'Listening...';
                 
                 if (finalTranscript) {
-                    this.elements.messageInput.value = finalTranscript;
+                    this.elements.messageInput.value = (this.elements.messageInput.value + ' ' + finalTranscript).trim();
+                } else if (interimTranscript && !this.elements.messageInput.value) {
+                    this.elements.liveTranscript.textContent = interimTranscript;
                 }
             };
             
             this.recognition.onend = () => {
                 console.log('Speech recognition ended');
                 this.isRecording = false;
+                this.clearSilenceTimeout();
                 
                 if (this.elements.messageInput.value.trim()) {
                     this.sendMessage();
@@ -95,16 +110,47 @@ class VoiceAssistant {
             this.recognition.onerror = (event) => {
                 console.error('Speech recognition error:', event.error);
                 this.isRecording = false;
-                this.setState('ready');
+                this.clearSilenceTimeout();
                 
                 if (event.error === 'not-allowed') {
                     this.elements.liveTranscript.textContent = 'Microphone access denied. Please allow microphone access.';
-                } else {
+                    this.setState('ready');
+                } else if (event.error === 'no-speech') {
+                    if (this.elements.messageInput.value.trim()) {
+                        this.sendMessage();
+                    } else {
+                        this.setState('ready');
+                        this.elements.liveTranscript.textContent = '';
+                    }
+                } else if (event.error !== 'aborted') {
                     this.elements.liveTranscript.textContent = 'Error: ' + event.error;
+                    this.setState('ready');
                 }
             };
         } else {
             console.log('Speech recognition not supported');
+        }
+    }
+    
+    startSilenceDetection() {
+        this.resetSilenceTimeout();
+    }
+    
+    resetSilenceTimeout() {
+        this.clearSilenceTimeout();
+        
+        this.silenceTimeout = setTimeout(() => {
+            if (this.isRecording) {
+                console.log('Silence detected, stopping recognition');
+                this.stopRecording();
+            }
+        }, this.silenceDelay);
+    }
+    
+    clearSilenceTimeout() {
+        if (this.silenceTimeout) {
+            clearTimeout(this.silenceTimeout);
+            this.silenceTimeout = null;
         }
     }
     
@@ -212,16 +258,35 @@ class VoiceAssistant {
         }
         
         if (this.isRecording) {
-            this.recognition.stop();
+            this.stopRecording();
         } else {
-            this.elements.messageInput.value = '';
+            this.startRecording();
+        }
+    }
+    
+    startRecording() {
+        if (this.isRecording || this.state === 'speaking' || this.state === 'thinking') {
+            return;
+        }
+        
+        this.elements.messageInput.value = '';
+        try {
+            this.recognition.start();
+        } catch (error) {
+            console.error('Error starting recognition:', error);
+            if (error.message.includes('already started')) {
+                this.recognition.stop();
+            }
+        }
+    }
+    
+    stopRecording() {
+        this.clearSilenceTimeout();
+        if (this.recognition && this.isRecording) {
             try {
-                this.recognition.start();
+                this.recognition.stop();
             } catch (error) {
-                console.error('Error starting recognition:', error);
-                if (error.message.includes('already started')) {
-                    this.recognition.stop();
-                }
+                console.error('Error stopping recognition:', error);
             }
         }
     }
@@ -300,6 +365,7 @@ class VoiceAssistant {
             console.error('Failed to send message:', error);
             this.addMessage('Failed to send message. Please try again.', 'assistant');
             this.setState('ready');
+            this.autoStartListening();
         } finally {
             this.elements.sendBtn.disabled = false;
         }
@@ -322,6 +388,7 @@ class VoiceAssistant {
         this.currentTranscript = '';
         this.scheduledTime = 0;
         this.isFirstChunk = true;
+        this.playbackStarted = false;
         
         this.elements.liveTranscript.classList.add('active');
         this.setState('speaking');
@@ -331,6 +398,10 @@ class VoiceAssistant {
         const { seq, chunk, is_last, format } = data;
         
         if (chunk) {
+            if (this.audioQueue.length >= this.maxBufferSize) {
+                this.audioQueue.shift();
+            }
+            
             this.audioQueue.push({
                 seq,
                 chunk,
@@ -352,8 +423,13 @@ class VoiceAssistant {
     async startPlayback() {
         if (this.isPlaying) return;
         this.isPlaying = true;
+        this.playbackStarted = true;
         
         await this.resumeAudioContext();
+        
+        const bufferDelayMs = this.initialBufferDelay * 1000;
+        await new Promise(resolve => setTimeout(resolve, bufferDelayMs));
+        
         this.playNextChunk();
     }
     
@@ -371,7 +447,7 @@ class VoiceAssistant {
                 this.highestSeqPlayed = this.audioQueue[0].seq - 1;
             }
             
-            setTimeout(() => this.playNextChunk(), 10);
+            setTimeout(() => this.playNextChunk(), 20);
             return;
         }
         
@@ -391,7 +467,7 @@ class VoiceAssistant {
             console.error('Error playing chunk:', error);
         }
         
-        setTimeout(() => this.playNextChunk(), 5);
+        setTimeout(() => this.playNextChunk(), 10);
     }
     
     decodeBase64ToPCM16(base64) {
@@ -420,12 +496,13 @@ class VoiceAssistant {
         source.connect(this.audioContext.destination);
         
         const currentTime = this.audioContext.currentTime;
-        const startTime = Math.max(currentTime, this.scheduledTime);
         
         if (this.isFirstChunk) {
-            this.scheduledTime = currentTime + 0.02;
+            this.scheduledTime = currentTime + this.initialBufferDelay;
             this.isFirstChunk = false;
         }
+        
+        const startTime = Math.max(currentTime + 0.01, this.scheduledTime);
         
         source.start(startTime);
         this.scheduledTime = startTime + audioBuffer.duration;
@@ -471,11 +548,30 @@ class VoiceAssistant {
     handleStreamEnd(data) {
         console.log('Stream completed, total chunks:', data.totalChunks);
         
+        const estimatedPlaybackTime = this.scheduledTime - this.audioContext.currentTime;
+        const waitTime = Math.max(500, estimatedPlaybackTime * 1000 + 500);
+        
         setTimeout(() => {
-            if (this.state === 'speaking' && !this.isPlaying) {
+            if (this.state === 'speaking' || this.state === 'thinking') {
                 this.setState('ready');
             }
-        }, 1000);
+            if (!this.isRecording && this.state === 'ready') {
+                this.autoStartListening();
+            }
+        }, waitTime);
+    }
+    
+    autoStartListening() {
+        if (this.autoListenEnabled && this.state === 'ready') {
+            setTimeout(() => {
+                if (this.state === 'ready') {
+                    console.log('Auto-starting microphone');
+                    this.resumeAudioContext().then(() => {
+                        this.startRecording();
+                    });
+                }
+            }, 800);
+        }
     }
     
     handleChatEnded(data) {
@@ -484,7 +580,7 @@ class VoiceAssistant {
         
         const summaryHtml = `
             <div class="chat-ended-summary">
-                <h3>📋 Chat Summary</h3>
+                <h3>Chat Summary</h3>
                 ${data.title ? `<p><span class="label">Title:</span> ${data.title}</p>` : ''}
                 ${data.description ? `<p><span class="label">Description:</span> ${data.description}</p>` : ''}
                 ${data.category ? `<p><span class="label">Category:</span> ${data.category}</p>` : ''}
